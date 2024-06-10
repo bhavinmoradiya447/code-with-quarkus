@@ -67,7 +67,7 @@ public class MediaCastGrpcService extends MutinyMediaCastServiceGrpc.MediaCastSe
                     .build());
             flowPublisher.close();
         } else {
-            if(System.currentTimeMillis() - payload.getTimestamp() > 500) {
+            if(System.currentTimeMillis() - payload.getTimestamp() > 100) {
                 LOGGER.info("Sending audio callLegId: {}, payloadType: {}, payload timestamp: {}, delay: {}",
                         payload.getUuid(), payload.getPayloadType(),
                         payload.getTimestamp(), System.currentTimeMillis() - payload.getTimestamp());
