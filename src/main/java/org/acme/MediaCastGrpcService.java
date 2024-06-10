@@ -22,7 +22,7 @@ public class MediaCastGrpcService extends MutinyMediaCastServiceGrpc.MediaCastSe
     private static final Logger LOGGER = LoggerFactory.getLogger(MediaCastGrpcService.class);
 
     @Override
-    //@Blocking
+    @Blocking
     public Multi<Mcs.DialogResponsePayload> dialog(Multi<Mcs.DialogRequestPayload> request) {
         LOGGER.info("Received dialog request to stream media from MCS");
         return streamMedia(request);
