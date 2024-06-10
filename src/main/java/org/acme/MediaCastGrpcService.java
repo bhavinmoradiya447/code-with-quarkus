@@ -61,10 +61,10 @@ public class MediaCastGrpcService extends MutinyMediaCastServiceGrpc.MediaCastSe
         if (AUDIO_START.equals(payload.getPayloadType())) {
             //LOGGER.info("Creating streaming session for CallLegId: {}, Payload type: {} ",
             //        payload.getUuid(), payload.getPayloadType());
-            flowPublisher.submit(Mcs.DialogResponsePayload.newBuilder()
+            /*flowPublisher.submit(Mcs.DialogResponsePayload.newBuilder()
                     .setPayloadType(Mcs.DialogResponsePayloadType.RESPONSE_END)
                     .setData("{\"status\":\"OK\"}")
-                    .build());
+                    .build());*/
         } else {
             if(System.currentTimeMillis() - payload.getTimestamp() > 500) {
                 LOGGER.info("Sending audio callLegId: {}, payloadType: {}, payload timestamp: {}, delay: {}",
