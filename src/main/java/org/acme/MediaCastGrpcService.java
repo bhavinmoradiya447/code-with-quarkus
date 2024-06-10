@@ -66,7 +66,7 @@ public class MediaCastGrpcService extends MutinyMediaCastServiceGrpc.MediaCastSe
                     .setData("{\"status\":\"OK\"}")
                     .build());
         } else {
-            LOGGER.trace("Sending audio callLegId: {}, payloadType: {}, payload timestamp: {}, delay: {}",
+            LOGGER.info("Sending audio callLegId: {}, payloadType: {}, payload timestamp: {}, delay: {}",
                     payload.getUuid(), payload.getPayloadType(),
                     payload.getTimestamp(), System.currentTimeMillis() - payload.getTimestamp());
         }
