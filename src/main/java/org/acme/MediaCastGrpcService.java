@@ -2,6 +2,7 @@ package org.acme;
 
 import static mcs.Mcs.DialogRequestPayloadType.AUDIO_START;
 
+import io.grpc.stub.StreamObserver;
 import io.quarkus.grpc.GrpcService;
 
 import io.smallrye.common.annotation.Blocking;
@@ -9,70 +10,56 @@ import io.smallrye.mutiny.Context;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
+import jakarta.inject.Inject;
 import java.util.concurrent.SubmissionPublisher;
 import mcs.Mcs;
+import mcs.MediaCastServiceGrpc;
 import mcs.MutinyMediaCastServiceGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-@GrpcService
-public class MediaCastGrpcService extends MutinyMediaCastServiceGrpc.MediaCastServiceImplBase {
+//@GrpcService
+public class MediaCastGrpcService extends MediaCastServiceGrpc.MediaCastServiceImplBase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MediaCastGrpcService.class);
-
     @Override
-    @Blocking
-    public Multi<Mcs.DialogResponsePayload> dialog(Multi<Mcs.DialogRequestPayload> request) {
-        LOGGER.info("Received dialog request to stream media from MCS");
-        return streamMedia(request);
+    public StreamObserver<Mcs.DialogRequestPayload> dialog(StreamObserver<Mcs.DialogResponsePayload> responseObserver) {
+        return new StreamObserver<>() {
+            @Override
+            public void onNext(Mcs.DialogRequestPayload value) {
+                LOGGER.info("Received dialog request to stream media from MCS");
+                streamMedia(value, responseObserver);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                LOGGER.error("Error while streaming media from MCS", t);
+                responseObserver.onError(t);
+            }
+
+            @Override
+            public void onCompleted() {
+                LOGGER.info("Client streaming complete");
+                responseObserver.onCompleted();
+            }
+        };
     }
 
-    public Multi<Mcs.DialogResponsePayload> streamMedia(Multi<Mcs.DialogRequestPayload> dialogRequestPayload) {
-        var flowPublisher = new SubmissionPublisher<Mcs.DialogResponsePayload>();
-        var context = Context.of("UUID", "UUID");
-        dialogRequestPayload
-                .runSubscriptionOn(Infrastructure.getDefaultExecutor())
-                .subscribe()
-                .with(context, payload -> {
-                            context.put("UUID", payload.getUuid());
-                            handlePayload(payload, flowPublisher);
-                        },
-                        error -> {
-                            LOGGER.error("Stream Terminated with error for callId " + context.get("UUID"), error);
-                            StackTraceElement[] stkTrace = error.getStackTrace();
-                            var stackTraceStr = new StringBuilder("");
-                            for (StackTraceElement stackTraceElement : stkTrace) {
-                                stackTraceStr.append(stackTraceElement.toString());
-                            }
-                            LOGGER.error("Stream Terminated with error for callId " + context.get("UUID")
-                                         + " Errro = " + stackTraceStr);
+    private void streamMedia(Mcs.DialogRequestPayload requestPayload,
+                             StreamObserver<Mcs.DialogResponsePayload> responseObserver) {
 
-                        },
-                        () -> {
-                            LOGGER.info("Stream completed for callId " + context.get("UUID"));
-                        });
-
-        return Multi.createFrom().publisher(flowPublisher);
-    }
-
-    void handlePayload(Mcs.DialogRequestPayload payload,
-                       SubmissionPublisher<Mcs.DialogResponsePayload> flowPublisher) {
-        if (AUDIO_START.equals(payload.getPayloadType())) {
-            //LOGGER.info("Creating streaming session for CallLegId: {}, Payload type: {} ",
-            //        payload.getUuid(), payload.getPayloadType());
-            flowPublisher.submit(Mcs.DialogResponsePayload.newBuilder()
-                    .setPayloadType(Mcs.DialogResponsePayloadType.RESPONSE_END)
-                    .setData("{\"status\":\"OK\"}")
-                    .build());
-            flowPublisher.close();
+        if (AUDIO_START.equals(requestPayload.getPayloadType())) {
+            responseObserver.onNext(
+                    Mcs.DialogResponsePayload.newBuilder().setPayloadType(Mcs.DialogResponsePayloadType.RESPONSE_END)
+                            .setData("{\"status\":\"OK\"}")
+                            .build());
         } else {
-            if(System.currentTimeMillis() - payload.getTimestamp() > 100) {
+            if (System.currentTimeMillis() - requestPayload.getTimestamp() > 100) {
                 LOGGER.info("Sending audio callLegId: {}, payloadType: {}, payload timestamp: {}, delay: {}",
-                        payload.getUuid(), payload.getPayloadType(),
-                        payload.getTimestamp(), System.currentTimeMillis() - payload.getTimestamp());
+                        requestPayload.getUuid(), requestPayload.getPayloadType(),
+                        requestPayload.getTimestamp(), System.currentTimeMillis() - requestPayload.getTimestamp());
             }
         }
     }
-
 }
